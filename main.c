@@ -1,9 +1,14 @@
+#define _DEFAULT_SOURCE
+#define _BSD_SOURCE
+#define _GNU_SOURCE
+
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -54,15 +59,19 @@ void editorRefreshScreen();
 void editorDrawRows(struct abuf *ab);
 void abAppend(struct abuf *ab, const char *s, int len);
 void abFree(struct abuf *ab);
+void editorOpen(char *filename);
 
 int editorReadKey();
 
 int getWindowSize(int *rows, int *cols);
 int getCursorPosition(int *rows, int *cols);
 
-int main(void) {
+int main(int argc, char *argv[]) {
   enableRawMode();
   initEditor();
+  if (argc >= 2) {
+    editorOpen(argv[1]);
+  }
 
   while (1) {
     editorRefreshScreen();
@@ -254,24 +263,32 @@ void editorRefreshScreen() {
 
 void editorDrawRows(struct abuf *ab) {
   for (int y = 0; y < E.screenrows; y++) {
-    if (y == E.screenrows / 3) {
-      char welcome[80];
-      int welcomelen = snprintf(welcome, sizeof(welcome),
-                                "Kilo editor -- version %s", KILO_VERSION);
-      if (welcomelen > E.screencols) {
-        welcomelen = E.screencols;
-      }
-      int padding = (E.screencols - welcomelen) / 2;
-      if (padding) {
+    if (y >= E.numrows) {
+      if (y == E.screenrows / 3) {
+        char welcome[80];
+        int welcomelen = snprintf(welcome, sizeof(welcome),
+                                  "Kilo editor -- version %s", KILO_VERSION);
+        if (welcomelen > E.screencols) {
+          welcomelen = E.screencols;
+        }
+        int padding = (E.screencols - welcomelen) / 2;
+        if (padding) {
+          abAppend(ab, "~", 1);
+          padding--;
+        }
+        while (padding--) {
+          abAppend(ab, " ", 1);
+        }
+        abAppend(ab, welcome, welcomelen);
+      } else {
         abAppend(ab, "~", 1);
-        padding--;
       }
-      while (padding--) {
-        abAppend(ab, " ", 1);
-      }
-      abAppend(ab, welcome, welcomelen);
     } else {
-      abAppend(ab, "~", 1);
+      int len = E.row.size;
+      if (len > E.screencols) {
+        len = E.screencols;
+      }
+      abAppend(ab, E.row.chars, len);
     }
     abAppend(ab, "\x1b[K", 3);
     if (y < E.screenrows - 1) {
@@ -334,3 +351,27 @@ void abAppend(struct abuf *ab, const char *s, int len) {
 }
 
 void abFree(struct abuf *ab) { free(ab->b); }
+
+void editorOpen(char *filename) {
+  FILE *fp = fopen(filename, "r");
+  if (!fp) {
+    die("fopen");
+  }
+  char *line = NULL;
+  size_t linecap = 0;
+  ssize_t linelen;
+  linelen = getline(&line, &linecap, fp);
+  if (linelen != -1) {
+    while (linelen > 0 &&
+           (line[linelen - 1] == '\n' || line[linelen - 1] == '\r')) {
+      linelen--;
+    }
+    E.row.size = linelen;
+    E.row.chars = malloc(linelen + 1);
+    memcpy(E.row.chars, line, linelen);
+    E.row.chars[linelen] = '\0';
+    E.numrows = 1;
+  }
+  free(line);
+  fclose(fp);
+}

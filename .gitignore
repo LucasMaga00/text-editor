@@ -1,0 +1,20 @@
+# C build and debug outputs
+/main
+/a.out
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+*.dSYM/
+
+# Local compiler database
+/compile_commands.json
+
+# macOS metadata
+.DS_Store
+
+# Vim temporary files
+*.swp
+*.swo
+*~

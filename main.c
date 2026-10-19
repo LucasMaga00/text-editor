@@ -90,11 +90,13 @@ void editorFreeRow(erow *row);
 void editorDelRow(int at);
 void editorRowAppendString(erow *row, char *s, size_t len);
 void editorInsertNewLine();
+void editorFind();
 
 int editorReadKey();
 int getWindowSize(int *rows, int *cols);
 int getCursorPosition(int *rows, int *cols);
 int editorRowCxToRx(erow *row, int cx);
+int editorRowRxToCx(erow *row, int rx);
 
 char *editorRowsToString(int *buflen);
 char *editorPrompt(char *prompt);
@@ -106,7 +108,7 @@ int main(int argc, char *argv[]) {
     editorOpen(argv[1]);
   }
 
-  editorSetStatusMessage("HELP: Ctrl-S = save | Crtl-Q = quit");
+  editorSetStatusMessage("HELP: Ctrl-S = save | Crtl-Q = quit | Crtl-F = find");
 
   while (1) {
     editorRefreshScreen();
@@ -265,6 +267,9 @@ void editorProcessKeypress() {
     break;
   case CTRL_KEY('s'):
     editorSave();
+    break;
+  case CTRL_KEY('f'):
+    editorFind();
     break;
   default:
     editorInsertChar(c);
@@ -767,4 +772,38 @@ char *editorPrompt(char *prompt) {
       buf[buflen] = '\0';
     }
   }
+}
+
+void editorFind() {
+  char *query = editorPrompt("Search: %s (ESC to cancel)");
+  if (query == NULL) {
+    return;
+  }
+  for (int i = 0; i < E.numrows; i++) {
+    erow *row = &E.row[i];
+    char *match = strstr(row->render, query);
+    if (match) {
+      E.cy = i;
+      E.cx = editorRowRxToCx(row, match - row->render);
+      E.rowoff = E.numrows;
+      break;
+    }
+  }
+  free(query);
+}
+
+int editorRowRxToCx(erow *row, int rx) {
+  int cur_rx = 0;
+  int cx;
+
+  for (cx = 0; cx < row->size; cx++) {
+    if (row->chars[cx] == '\t') {
+      cur_rx = (TAB_STOP - 1) - (cur_rx % TAB_STOP);
+    }
+    cur_rx++;
+    if (cur_rx > rx) {
+      return cx;
+    }
+  }
+  return cx;
 }

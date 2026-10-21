@@ -1,4 +1,4 @@
-# Kilo editor in C
+# Text editor in C
 
 A small terminal text editor built in C as a learning project. It supports
 editing and saving files, scrolling, incremental search, and syntax highlighting

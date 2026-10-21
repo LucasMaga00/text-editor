@@ -1,5 +1,6 @@
 # C build and debug outputs
 /main
+/tests/editor_test
 /a.out
 *.o
 *.a
